@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Interview Emotion Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🎭 AI Interview Coach - Emotion Analysis</h1>
+            <p class="subtitle">Get real-time feedback on your interview presence</p>
+        </header>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Video Section -->
+            <div class="video-section">
+                <div class="video-container">
+                    <video id="webcam" autoplay playsinline></video>
+                    <canvas id="canvas" style="display: none;"></canvas>
+                    
+                    <!-- Score Overlay -->
+                    <div id="score-badge" class="score-badge" style="display: none;">
+                        <div class="score-value">--</div>
+                        <div class="score-label">Score</div>
+                    </div>
+                    
+                    <!-- Loading Overlay -->
+                    <div id="loading" class="overlay">
+                        <div class="spinner"></div>
+                        <p>Initializing AI Coach...</p>
+                    </div>
+                    
+                    <!-- Error Overlay -->
+                    <div id="error" class="overlay error-overlay" style="display: none;">
+                        <div class="error-icon">⚠️</div>
+                        <p id="error-message"></p>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="controls">
+                    <button id="startBtn" class="btn btn-primary" disabled>
+                        <span class="btn-icon">▶️</span>
+                        Start Analysis
+                    </button>
+                    <button id="stopBtn" class="btn btn-danger" style="display: none;">
+                        <span class="btn-icon">⏸️</span>
+                        Pause
+                    </button>
+                    <button id="reportBtn" class="btn btn-info">
+                        <span class="btn-icon">📊</span>
+                        View Report
+                    </button>
+                    <button id="resetBtn" class="btn btn-secondary">
+                        <span class="btn-icon">🔄</span>
+                        New Session
+                    </button>
+                </div>
+
+                <!-- Status -->
+                <div class="status">
+                    <span id="status-text">Ready to start</span>
+                    <span id="fps-counter" class="fps">Detections: 0</span>
+                </div>
+            </div>
+
+            <!-- NEW SECTION 1: EMOTION & ATTITUDE - Below face detection -->
+            <div class="card metrics-section">
+                <h2>🎭 Emotion & Attitude</h2>
+                <div class="metrics-container">
+                    <div class="metric-bar-wrapper">
+                        <div class="metric-label-row">
+                            <span class="metric-label">Confidence</span>
+                            <span class="metric-value" id="metric-confidence-value">0%</span>
+                        </div>
+                        <div class="metric-bar-bg">
+                            <div class="metric-bar-fill" id="metric-confidence-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="metric-bar-wrapper">
+                        <div class="metric-label-row">
+                            <span class="metric-label">Nervousness</span>
+                            <span class="metric-value" id="metric-nervousness-value">0%</span>
+                        </div>
+                        <div class="metric-bar-bg">
+                            <div class="metric-bar-fill" id="metric-nervousness-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="metric-bar-wrapper">
+                        <div class="metric-label-row">
+                            <span class="metric-label">Engagement</span>
+                            <span class="metric-value" id="metric-engagement-value">0%</span>
+                        </div>
+                        <div class="metric-bar-bg">
+                            <div class="metric-bar-fill" id="metric-engagement-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="metric-bar-wrapper">
+                        <div class="metric-label-row">
+                            <span class="metric-label">Positivity</span>
+                            <span class="metric-value" id="metric-positivity-value">0%</span>
+                        </div>
+                        <div class="metric-bar-bg">
+                            <div class="metric-bar-fill" id="metric-positivity-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="metric-bar-wrapper">
+                        <div class="metric-label-row">
+                            <span class="metric-label">Focus</span>
+                            <span class="metric-value" id="metric-focus-value">0%</span>
+                        </div>
+                        <div class="metric-bar-bg">
+                            <div class="metric-bar-fill" id="metric-focus-bar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEW SECTION 2: INTERVIEW BEHAVIOR - Below Emotion & Attitude -->
+            <div class="card metrics-section">
+                <h2>👁️ Interview Behavior</h2>
+                <div class="metrics-container">
+                    <div class="metric-bar-wrapper">
+                        <div class="metric-label-row">
+                            <span class="metric-label">Eye Contact</span>
+                            <span class="metric-value" id="metric-eye_contact-value">0%</span>
+                        </div>
+                        <div class="metric-bar-bg">
+                            <div class="metric-bar-fill" id="metric-eye_contact-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="metric-bar-wrapper">
+                        <div class="metric-label-row">
+                            <span class="metric-label">Stability</span>
+                            <span class="metric-value" id="metric-stability-value">0%</span>
+                        </div>
+                        <div class="metric-bar-bg">
+                            <div class="metric-bar-fill" id="metric-stability-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="metric-bar-wrapper">
+                        <div class="metric-label-row">
+                            <span class="metric-label">Distraction</span>
+                            <span class="metric-value" id="metric-distraction-value">0%</span>
+                        </div>
+                        <div class="metric-bar-bg">
+                            <div class="metric-bar-fill" id="metric-distraction-bar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section">
+                <!-- Current Emotion -->
+                <div class="card">
+                    <h2>Current State</h2>
+                    <div id="emotion-display" class="emotion-display">
+                        <div class="emotion-icon">😐</div>
+                        <div class="emotion-info">
+                            <div class="emotion-name">Waiting...</div>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill" style="width: 0%"></div>
+                            </div>
+                            <div class="confidence-text">Confidence: 0%</div>
+                        </div>
+                    </div>
+                    <div id="interview-impact" class="interview-impact" style="display: none;">
+                        <strong>Interview Impact:</strong>
+                        <p id="impact-text"></p>
+                    </div>
+                </div>
+
+                <!-- Live Analytics -->
+                <div class="card">
+                    <h2>Session Analytics</h2>
+                    <div id="analytics-display" class="analytics-display">
+                        <div class="analytic-item">
+                            <span class="analytic-label">Average Score:</span>
+                            <span class="analytic-value" id="avg-score">--</span>
+                        </div>
+                        <div class="analytic-item">
+                            <span class="analytic-label">Consistency:</span>
+                            <span class="analytic-value" id="consistency">--</span>
+                        </div>
+                        <div class="analytic-item">
+                            <span class="analytic-label">Dominant State:</span>
+                            <span class="analytic-value" id="dominant-emotion">--</span>
+                        </div>
+                        <div class="analytic-item">
+                            <span class="analytic-label">Trend:</span>
+                            <span class="analytic-value" id="trend">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feedback -->
+                <div class="card">
+                    <h2>AI Coach Feedback</h2>
+                    <div id="feedback-display" class="feedback-display">
+                        <p class="feedback-placeholder">Start analysis to receive coaching</p>
+                    </div>
+                </div>
+
+                <!-- Emotion History -->
+                <div class="card">
+                    <h2>State Timeline</h2>
+                    <div id="history-display" class="history-display">
+                        <p class="history-placeholder">No data yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Modal -->
+        <div id="reportModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>📊 Interview Performance Report</h2>
+                    <button class="close-btn" id="closeModal">&times;</button>
+                </div>
+                <div class="modal-body" id="reportContent">
+                    <p>Loading report...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="instructions-panel">
+            <h3>💡 How to Use This AI Coach</h3>
+            <div class="instruction-grid">
+                <div class="instruction-item">
+                    <div class="instruction-icon">📹</div>
+                    <h4>Step 1: Position</h4>
+                    <p>Sit comfortably with good lighting. Face the camera directly.</p>
+                </div>
+                <div class="instruction-item">
+                    <div class="instruction-icon">▶️</div>
+                    <h4>Step 2: Start</h4>
+                    <p>Click "Start Analysis" and practice your interview responses.</p>
+                </div>
+                <div class="instruction-item">
+                    <div class="instruction-icon">🎯</div>
+                    <h4>Step 3: Improve</h4>
+                    <p>Follow real-time feedback to improve your presence.</p>
+                </div>
+                <div class="instruction-item">
+                    <div class="instruction-icon">📊</div>
+                    <h4>Step 4: Report</h4>
+                    <p>Review your detailed performance report and recommendations.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>🚀 Interview like a pro - Practice makes perfect!</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
