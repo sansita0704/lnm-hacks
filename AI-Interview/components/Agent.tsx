@@ -3,17 +3,20 @@
 import Image from "next/image";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import EmotionMonitor from "@/components/EmotionMonitor"; // Import the new component
+import EmotionMonitor from "@/components/EmotionMonitor";
+import PaymentModal from "@/components/PaymentModal";
 
 import { cn } from "@/lib/utils";
 import { vapi } from "@/lib/vapi.sdk";
-// import { interviewer } from "@/constants"; // Unused import removed
 import { createFeedback } from "@/lib/actions/general.action";
 import Video from "./Video";
 
-import { getContract } from "@/lib/web3"; // This is your staking contract helper
 import { saveUserWallet } from "@/lib/actions/user.action";
 import { ethers } from "ethers";
+import { createPaymentAgent } from "@/lib/payment-agent";
+import { PaymentState, PaymentProgress } from "@/types/payment";
+import { createEvaluationAgent } from "@/lib/evaluation-agent";
+import { EvaluationState, DecisionResult } from "@/types/evaluation";
 
 // --- Types (Add these if not imported) ---
 interface AgentProps {
@@ -64,6 +67,16 @@ const Agent = ({
 
     const [currentTranscript, setCurrentTranscript] = useState<string>("");
     const [finalTranscriptReady, setFinalTranscriptReady] = useState(false);
+
+    // Payment Agent State
+    const [paymentProgress, setPaymentProgress] = useState<PaymentProgress>({
+        state: PaymentState.IDLE,
+        message: "",
+    });
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+    // Evaluation State
+    const [evaluationResult, setEvaluationResult] = useState<DecisionResult | null>(null);
 
     // Ref to prevent duplicate submissions on effect re-runs
     const processingFeedback = useRef(false);
@@ -164,6 +177,33 @@ const Agent = ({
             }
 
             try {
+                // STEP 6 & 7: Autonomous Evaluation and Decision
+                console.log("🤖 Starting autonomous evaluation...");
+                
+                const evaluationAgent = createEvaluationAgent();
+                
+                const decision = await evaluationAgent.evaluateAndDecide({
+                    transcript: messages,
+                    userId: userId!,
+                    interviewId,
+                    metadata: {
+                        duration: Math.floor((Date.now() - Date.now()) / 1000), // Placeholder
+                    },
+                });
+
+                console.log("✅ Evaluation complete:", {
+                    status: decision.status,
+                    score: decision.final_score,
+                    categories: decision.evaluation.categories.map(c => `${c.category}: ${c.score}`),
+                });
+
+                // Store evaluation result
+                setEvaluationResult(decision);
+
+                // Notify backend
+                await evaluationAgent.notifyBackend(decision, userId!, interviewId);
+
+                // Create feedback with evaluation
                 const { success, feedbackId: id } = await createFeedback({
                     interviewId,
                     userId: userId!,
@@ -174,12 +214,6 @@ const Agent = ({
                 if (success && id) {
                     {
                         router.push(`/interview/${interviewId}/feedback`);
-//                         const PASS_SCORE = 65;
-
-// if (result.overall >= PASS_SCORE) {
-//   await rewardUser(user.wallet);
-// }
-
                     }
                 } else {
                     router.push("/");
@@ -197,22 +231,56 @@ const Agent = ({
         setCallStatus(CallStatus.CONNECTING);
 
         try {
+            // Request microphone access
             await navigator.mediaDevices.getUserMedia({ audio: true });
 
+            // Get wallet and save it
             const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
             const wallet = await signer.getAddress();
-
             await saveUserWallet(userId!, wallet);
 
-             // 1️⃣ Get the contract instance
-            const contract = await getContract();
+            // Create payment agent with progress callback
+            const paymentAgent = createPaymentAgent((progress) => {
+                setPaymentProgress(progress);
+                
+                // Show modal for payment states
+                if (
+                    progress.state === PaymentState.PAYMENT_REQUIRED ||
+                    progress.state === PaymentState.APPROVING ||
+                    progress.state === PaymentState.PROCESSING ||
+                    progress.state === PaymentState.VERIFYING
+                ) {
+                    setShowPaymentModal(true);
+                }
+            });
 
-            // 2️⃣ Stake tokens (or whatever your contract logic is)
-            const tx = await contract?.stake();
-            await tx.wait(); // wait for transaction to be mined
+            // Execute autonomous payment flow
+            const paymentResult = await paymentAgent.handlePaymentFlow(userId!);
 
-            console.log("Staking successful, starting AI interview...");
+            // Handle payment result
+            if (!paymentResult.success) {
+                if (paymentResult.state === PaymentState.REJECTED) {
+                    // User rejected payment
+                    setCallStatus(CallStatus.INACTIVE);
+                    setShowPaymentModal(true);
+                    return;
+                } else {
+                    // Payment failed
+                    throw new Error(paymentResult.error || "Payment failed");
+                }
+            }
+
+            // Notify server of payment completion
+            if (paymentResult.transactionHash) {
+                await paymentAgent.notifyPaymentComplete(
+                    paymentResult.transactionHash,
+                    userId!
+                );
+            }
+
+            // Payment successful - start interview
+            console.log("Payment successful, starting AI interview...");
 
             const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID;
 
@@ -237,15 +305,39 @@ const Agent = ({
                     },
                 });
             }
-        } catch (error) {
-            console.error("Error starting call:", error);
+
+            // Close payment modal after successful start
+            setTimeout(() => {
+                setShowPaymentModal(false);
+            }, 2000);
+        } catch (error: any) {
+            console.error("Full Error Object:", error);
             setCallStatus(CallStatus.INACTIVE);
+            
+            // Update payment progress with error
+            setPaymentProgress({
+                state: PaymentState.FAILED,
+                message: error.message || "An error occurred",
+            });
+            setShowPaymentModal(true);
         }
     };
 
     const handleDisconnect = () => {
         // Just stop Vapi. The event listener 'call-end' will handle state update.
         vapi.stop();
+    };
+
+    const handlePaymentModalClose = () => {
+        setShowPaymentModal(false);
+        
+        // Reset to inactive if payment was rejected or failed
+        if (
+            paymentProgress.state === PaymentState.REJECTED ||
+            paymentProgress.state === PaymentState.FAILED
+        ) {
+            setCallStatus(CallStatus.INACTIVE);
+        }
     };
 
     return (
@@ -322,6 +414,13 @@ const Agent = ({
                     </button>
                 }
             </div>
+
+            {/* Payment Modal */}
+            <PaymentModal
+                isOpen={showPaymentModal}
+                progress={paymentProgress}
+                onClose={handlePaymentModalClose}
+            />
         </>
     );
 };

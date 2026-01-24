@@ -5,18 +5,18 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --color-success-100: #49de50;
-  --color-success-200: #42c748;
+  --color-success-100: #10b981;
+  --color-success-200: #059669;
   --color-destructive-100: #f75353;
   --color-destructive-200: #c44141;
 
-  --color-primary-100: #85C7F2;
-  --color-primary-200: #85C7F2;
+  --color-primary-100: #34d399;
+  --color-primary-200: #10b981;
 
-  --color-light-100: #d6e0ff;
-  --color-light-400: #6870a6;
-  --color-light-600: #4f557d;
-  --color-light-800: #24273a;
+  --color-light-100: #d1fae5;
+  --color-light-400: #6ee7b7;
+  --color-light-600: #34d399;
+  --color-light-800: #065f46;
 
   --color-dark-100: #020408;
   --color-dark-200: #27282f;
@@ -29,14 +29,14 @@
 
 :root {
   --radius: 0.625rem;
-  --background: pink;
+  --background: #0a0f0a;
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: #85C7F2;
-  --primary-foreground: #85C7F2;
+  --primary: #10b981;
+  --primary-foreground: #10b981;
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -63,14 +63,14 @@
 }
 
 .dark {
-  --background: pink;
+  --background: #0a0f0a;
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: #85C7F2;
-  --primary-foreground: #85C7F2;
+  --primary: #10b981;
+  --primary-foreground: #10b981;
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -88,7 +88,7 @@
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: #85C7F2;
+  --sidebar-primary: #10b981;
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
@@ -217,11 +217,11 @@
     }
 
     .card-interviewer {
-      @apply flex-center flex-col gap-2 p-7 h-[400px] blue-gradient-dark rounded-lg border-2 border-primary-200/50 flex-1 sm:basis-1/2 w-full;
+      @apply flex-center flex-col gap-2 p-7 h-[400px] green-gradient-dark rounded-lg border-2 border-primary-200/50 flex-1 sm:basis-1/2 w-full;
     }
 
     .avatar {
-      @apply z-10 flex items-center justify-center blue-gradient rounded-full size-[120px] relative;
+      @apply z-10 flex items-center justify-center green-gradient rounded-full size-[120px] relative;
 
       .animate-speak {
         @apply absolute inline-flex size-5/6 animate-ping rounded-full bg-primary-200 opacity-75;
@@ -266,7 +266,7 @@
   }
 
   .card-cta {
-    @apply flex flex-row blue-gradient-dark rounded-3xl px-16 py-6 items-center justify-between max-sm:px-4;
+    @apply flex flex-row green-gradient-dark rounded-3xl px-16 py-6 items-center justify-between max-sm:px-4;
   }
 
   .interviews-section {
@@ -295,23 +295,23 @@
 }
 
 @utility dark-gradient {
-  @apply bg-gradient-to-b from-[#85C7F2] to-[#08090D];
+  @apply bg-gradient-to-b from-[#10b981] to-[#08090D];
 }
 
 @utility border-gradient {
-  @apply bg-gradient-to-b from-[#85C7F2] to-[#4B4D4F33];
+  @apply bg-gradient-to-b from-[#34d399] to-[#4B4D4F33];
 }
 
 @utility pattern {
   @apply bg-[url('/pattern.png')] bg-top bg-no-repeat;
 }
 
-@utility blue-gradient-dark {
-  @apply bg-gradient-to-b from-[#171532] to-[#08090D];
+@utility green-gradient-dark {
+  @apply bg-gradient-to-b from-[#064e3b] to-[#08090D];
 }
 
-@utility blue-gradient {
-  @apply bg-gradient-to-l from-[#FFFFFF] to-[#CAC5FE];
+@utility green-gradient {
+  @apply bg-gradient-to-l from-[#d1fae5] to-[#a7f3d0];
 }
 
 @utility flex-center {

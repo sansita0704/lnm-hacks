@@ -137,6 +137,19 @@ export async function createFeedback(params: CreateFeedbackParams) {
             await rewardUser(userData.wallet);
         }
 
+        // Save interview result for dashboard
+        await db.collection("interviews").doc(interviewId).set(
+            {
+            wallet: userData?.wallet || "",
+            score: finalScore,
+            status: finalScore >= PASS_SCORE ? "pass" : "fail",
+            tokens: finalScore >= PASS_SCORE ? "refunded" : "none",
+            updatedAt: new Date().toISOString(),
+            },
+            { merge: true } // merge to keep existing interview data
+        );
+  
+
         // Ensure interview document exists so it can be queried on the home page
         const interviewRef = db.collection("interviews").doc(interviewId);
         const interviewDoc = await interviewRef.get();
