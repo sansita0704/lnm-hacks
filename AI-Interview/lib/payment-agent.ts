@@ -71,6 +71,38 @@ export class PaymentAgent {
   }
 
   /**
+   * Helper function to retry contract calls with exponential backoff
+   */
+  private async retryWithBackoff<T>(
+    fn: () => Promise<T>,
+    maxRetries: number = 3,
+    initialDelay: number = 1000
+  ): Promise<T> {
+    let lastError: any;
+    
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await fn();
+      } catch (error: any) {
+        lastError = error;
+        
+        // Check if it's a rate limit error
+        if (error.code === -32005 || error.message?.includes('rate limit')) {
+          const delay = initialDelay * Math.pow(2, i);
+          console.log(`Rate limited, retrying in ${delay}ms... (attempt ${i + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        // If it's not a rate limit error, throw immediately
+        throw error;
+      }
+    }
+    
+    throw lastError;
+  }
+
+  /**
    * STEP 4: Lock Tokens in Smart Contract (Escrow)
    * Tokens are locked in the contract - NO custody by admin/company/AI
    */
@@ -96,7 +128,7 @@ export class PaymentAgent {
       }
 
       // Get stake amount from contract (trustless - contract defines the rules)
-      const stakeAmount = await escrowContract.stakeAmount();
+      const stakeAmount = await this.retryWithBackoff(() => escrowContract.stakeAmount());
       
       this.updateProgress(
         PaymentState.APPROVING, 
@@ -104,7 +136,7 @@ export class PaymentAgent {
       );
 
       // Check user's token balance
-      const balance = await tokenContract.balanceOf(wallet);
+      const balance = await this.retryWithBackoff(() => tokenContract.balanceOf(wallet));
       if (balance < stakeAmount) {
         throw new Error(
           `Insufficient token balance. Required: ${ethers.formatEther(stakeAmount)} tokens, Have: ${ethers.formatEther(balance)} tokens`
@@ -114,7 +146,9 @@ export class PaymentAgent {
       this.updateProgress(PaymentState.APPROVING, "Checking token allowance...");
 
       // Check and approve if needed (allow escrow contract to lock tokens)
-      const allowance = await tokenContract.allowance(wallet, requirement.destinationAddress);
+      const allowance = await this.retryWithBackoff(() => 
+        tokenContract.allowance(wallet, requirement.destinationAddress)
+      );
       
       if (allowance < stakeAmount) {
         this.updateProgress(PaymentState.APPROVING, "Requesting token approval for escrow...");

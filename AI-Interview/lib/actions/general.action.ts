@@ -1,7 +1,7 @@
 "use server";
 
 import { generateObject } from "ai";
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
 import { db } from "@/firebase/admin";
 import { feedbackSchema } from "@/constants";
@@ -40,7 +40,7 @@ export async function createFeedback(params: CreateFeedbackParams, precalculated
         hasPrecalculated: !!precalculatedEvaluation,
     });
 
-    if (!transcript || transcript.length < 5) {
+    if (!transcript) {
         console.warn(
             "Transcript is empty or too short. Skipping AI generation.",
         );
@@ -77,8 +77,12 @@ export async function createFeedback(params: CreateFeedbackParams, precalculated
                 )
                 .join("");
 
+            const google = createGoogleGenerativeAI({
+                apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+            });
+
             const { object: aiResult } = await generateObject({
-                model: google("gemini-2.5-flash"),
+                model: google("gemini-1.5-pro"),
                 schema: feedbackSchema,
                 prompt: `
                 Analyze the interview transcript below.
