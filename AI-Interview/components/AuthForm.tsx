@@ -19,6 +19,8 @@ import { Button } from "@/components/ui/button";
 
 import { signIn, signUp } from "@/lib/actions/auth.action";
 import FormField from "./FormField";
+import LoginWithWallet from "./LoginWithWallet";
+import { useState } from "react";
 
 const authFormSchema = (type: FormType) => {
   return z.object({
@@ -30,6 +32,7 @@ const authFormSchema = (type: FormType) => {
 
 const AuthForm = ({ type }: { type: FormType }) => {
   const router = useRouter();
+  const [isProfileCompletion, setIsProfileCompletion] = useState(false);
 
   const formSchema = authFormSchema(type);
   const form = useForm<z.infer<typeof formSchema>>({
@@ -107,52 +110,58 @@ const AuthForm = ({ type }: { type: FormType }) => {
 
         <h3>Practice job interviews with AI</h3>
 
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="w-full space-y-6 mt-4 form"
-          >
-            {!isSignIn && (
+        {!isProfileCompletion && (
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="w-full space-y-6 mt-4 form"
+            >
+              {!isSignIn && (
+                <FormField
+                  control={form.control}
+                  name="name"
+                  label="Name"
+                  placeholder="Your Name"
+                  type="text"
+                />
+              )}
+
               <FormField
                 control={form.control}
-                name="name"
-                label="Name"
-                placeholder="Your Name"
-                type="text"
+                name="email"
+                label="Email"
+                placeholder="Your email address"
+                type="email"
               />
-            )}
 
-            <FormField
-              control={form.control}
-              name="email"
-              label="Email"
-              placeholder="Your email address"
-              type="email"
-            />
+              <FormField
+                control={form.control}
+                name="password"
+                label="Password"
+                placeholder="Enter your password"
+                type="password"
+              />
 
-            <FormField
-              control={form.control}
-              name="password"
-              label="Password"
-              placeholder="Enter your password"
-              type="password"
-            />
+              <Button className="btn" type="submit">
+                {isSignIn ? "Sign In" : "Create an Account"}
+              </Button>
+            </form>
+          </Form>
+        )}
 
-            <Button className="btn" type="submit">
-              {isSignIn ? "Sign In" : "Create an Account"}
-            </Button>
-          </form>
-        </Form>
+        {!isProfileCompletion && (
+          <p className="text-center">
+            {isSignIn ? "No account yet?" : "Have an account already?"}
+            <Link
+              href={!isSignIn ? "/sign-in" : "/sign-up"}
+              className="font-bold text-user-primary ml-1"
+            >
+              {!isSignIn ? "Sign In" : "Sign Up"}
+            </Link>
+          </p>
+        )}
 
-        <p className="text-center">
-          {isSignIn ? "No account yet?" : "Have an account already?"}
-          <Link
-            href={!isSignIn ? "/sign-in" : "/sign-up"}
-            className="font-bold text-user-primary ml-1"
-          >
-            {!isSignIn ? "Sign In" : "Sign Up"}
-          </Link>
-        </p>
+        <LoginWithWallet onStateChange={setIsProfileCompletion} />
       </div>
     </div>
   );

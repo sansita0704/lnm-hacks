@@ -33,8 +33,10 @@ interface CreateFeedbackParams {
 }
 
 interface User {
-  name: string;
-  email: string;
+  name?: string;
+  email?: string;
+  walletAddress?: string;
+  authType: "email" | "wallet";
   id: string;
 }
 
