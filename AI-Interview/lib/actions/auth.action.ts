@@ -91,8 +91,10 @@ export async function signIn(params: SignInParams) {
 
 export async function getCustomTokenByWallet(params: {
   walletAddress: string;
+  email?: string;
+  username?: string;
 }) {
-  const { walletAddress } = params;
+  const { walletAddress, email, username } = params;
   
   try {
     const formattedWallet = walletAddress.toLowerCase();
@@ -111,20 +113,41 @@ export async function getCustomTokenByWallet(params: {
       // Wallet is NEW
       console.log(`New wallet detected: ${formattedWallet}`);
       
-      // Create new user record in Auth
-      // Since email and username are removed, we'll create a user with a unique ID
-      const userRecord = await auth.createUser({
-        displayName: `User ${formattedWallet.slice(0, 6)}`,
-      });
-      uid = userRecord.uid;
-      
-      // Save to Firestore
-      await db.collection("users").doc(uid).set({
-        walletAddress: formattedWallet,
-        authType: "wallet",
-        createdAt: new Date().toISOString(),
-      });
-      console.log(`Created new user ${uid} for wallet ${formattedWallet}`);
+      // 2. Check if we should associate with an existing email user
+      if (email) {
+        const emailQuery = await usersRef.where("email", "==", email.toLowerCase()).limit(1).get();
+        if (!emailQuery.empty) {
+          // Associate wallet with existing email user
+          uid = emailQuery.docs[0].id;
+          await usersRef.doc(uid).update({
+            walletAddress: formattedWallet,
+            authType: "wallet", // Or keeping as email but adding wallet attribute
+            updatedAt: new Date().toISOString(),
+          });
+          console.log(`Associated wallet ${formattedWallet} with existing email user ${uid}`);
+        } else {
+          // Create new user with email and wallet
+          const userRecord = await auth.createUser({
+            email: email,
+            displayName: username || `User ${formattedWallet.slice(0, 6)}`,
+          });
+          uid = userRecord.uid;
+          
+          await usersRef.doc(uid).set({
+            email: email.toLowerCase(),
+            name: username || `User ${formattedWallet.slice(0, 6)}`,
+            walletAddress: formattedWallet,
+            authType: "wallet",
+            createdAt: new Date().toISOString(),
+          });
+          console.log(`Created new user ${uid} with wallet and email`);
+        }
+      } else {
+        // No email provided, check if we need to return "needs_info" or just create anonymous-ish
+        // Based on user request, if new, save with walletAddress, username, email.
+        // If we don't have them yet, we might need a two-step flow in the frontend.
+        return { success: false, code: "NEEDS_INFO", message: "New wallet requires email/username association" };
+      }
     }
     
     // Generate custom token
