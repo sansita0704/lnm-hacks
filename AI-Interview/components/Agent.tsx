@@ -17,6 +17,8 @@ import { createPaymentAgent } from "@/lib/payment-agent";
 import { PaymentState, PaymentProgress } from "@/types/payment";
 import { createEvaluationAgent } from "@/lib/evaluation-agent";
 import { EvaluationState, DecisionResult } from "@/types/evaluation";
+import { createSettlementAgent } from "@/lib/settlement-agent";
+import { SettlementState, SettlementProgress } from "@/types/settlement";
 
 // --- Types (Add these if not imported) ---
 interface AgentProps {
@@ -67,6 +69,7 @@ const Agent = ({
 
     const [currentTranscript, setCurrentTranscript] = useState<string>("");
     const [finalTranscriptReady, setFinalTranscriptReady] = useState(false);
+    const [userWallet, setUserWallet] = useState<string | null>(null);
 
     // Payment Agent State
     const [paymentProgress, setPaymentProgress] = useState<PaymentProgress>({
@@ -77,6 +80,12 @@ const Agent = ({
 
     // Evaluation State
     const [evaluationResult, setEvaluationResult] = useState<DecisionResult | null>(null);
+
+    // Settlement State
+    const [settlementProgress, setSettlementProgress] = useState<SettlementProgress>({
+        state: SettlementState.IDLE,
+        message: "",
+    });
 
     // Ref to prevent duplicate submissions on effect re-runs
     const processingFeedback = useRef(false);
@@ -193,8 +202,8 @@ const Agent = ({
 
                 console.log("✅ Evaluation complete:", {
                     status: decision.status,
-                    score: decision.final_score,
-                    categories: decision.evaluation.categories.map(c => `${c.category}: ${c.score}`),
+                    score: decision.finalScore,
+                    categories: decision.evaluation.categoryScores.map(c => `${c.name}: ${c.score}`),
                 });
 
                 // Store evaluation result
@@ -209,7 +218,33 @@ const Agent = ({
                     userId: userId!,
                     transcript: messages,
                     feedbackId,
-                });
+                }, decision.evaluation);
+
+                // STEP 8: Autonomous Settlement
+                if (success && userWallet) {
+                    console.log("💰 Starting autonomous settlement agent...");
+                    const settlementAgent = createSettlementAgent((progress) => {
+                        setSettlementProgress(progress);
+                        console.log(`[Settlement] ${progress.state}: ${progress.message}`);
+                    });
+
+                    // Trigger settlement (refund or slash)
+                    // This runs autonomously in the background
+                    settlementAgent.settle({
+                        walletAddress: userWallet,
+                        finalScore: decision.finalScore,
+                        status: decision.status,
+                        escrowContractAddress: process.env.NEXT_PUBLIC_STAKE_ADDRESS!,
+                        stakedAmount: "0.5",
+                        adminWalletAddress: process.env.NEXT_PUBLIC_ADMIN_WALLET || "", // Fallback
+                        interviewId: interviewId,
+                        userId: userId!,
+                    }).then((result) => {
+                        console.log("✅ Settlement finalized:", result);
+                    }).catch((error) => {
+                        console.error("❌ Settlement agent failed:", error);
+                    });
+                }
 
                 if (success && id) {
                     {
@@ -238,6 +273,7 @@ const Agent = ({
             const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
             const wallet = await signer.getAddress();
+            setUserWallet(wallet);
             await saveUserWallet(userId!, wallet);
 
             // Create payment agent with progress callback

@@ -30,13 +30,14 @@ export async function rewardUser(wallet: string) {
 }
 
 
-export async function createFeedback(params: CreateFeedbackParams) {
+export async function createFeedback(params: CreateFeedbackParams, precalculatedEvaluation?: any) {
     const { interviewId, userId, transcript, feedbackId } = params;
 
     console.log("createFeedback called", {
         interviewId,
         userId,
         transcriptLength: transcript?.length,
+        hasPrecalculated: !!precalculatedEvaluation,
     });
 
     if (!transcript || transcript.length < 5) {
@@ -47,32 +48,56 @@ export async function createFeedback(params: CreateFeedbackParams) {
     }
 
     try {
-        const formattedTranscript = transcript
-            .map(
-                (sentence: { role: string; content: string }) =>
-                    `- ${sentence.role}: ${sentence.content}\n`,
-            )
-            .join("");
+        let object;
+        
+        if (precalculatedEvaluation) {
+            console.log("Using precalculated evaluation for feedback");
+            // Map our EvaluationScore format back to what createFeedback expects
+            object = {
+                totalScore: precalculatedEvaluation.totalScore,
+                communicationSkillsScore: precalculatedEvaluation.categoryScores.find((c: any) => c.name === "Communication Skills")?.score || 0,
+                communicationSkillsComment: precalculatedEvaluation.categoryScores.find((c: any) => c.name === "Communication Skills")?.comment || "",
+                technicalKnowledgeScore: precalculatedEvaluation.categoryScores.find((c: any) => c.name === "Technical Knowledge")?.score || 0,
+                technicalKnowledgeComment: precalculatedEvaluation.categoryScores.find((c: any) => c.name === "Technical Knowledge")?.comment || "",
+                problemSolvingScore: precalculatedEvaluation.categoryScores.find((c: any) => c.name === "Problem Solving")?.score || 0,
+                problemSolvingComment: precalculatedEvaluation.categoryScores.find((c: any) => c.name === "Problem Solving")?.comment || "",
+                culturalFitScore: precalculatedEvaluation.categoryScores.find((c: any) => c.name === "Cultural Fit")?.score || 0,
+                culturalFitComment: precalculatedEvaluation.categoryScores.find((c: any) => c.name === "Cultural Fit")?.comment || "",
+                confidenceAndClarityScore: precalculatedEvaluation.categoryScores.find((c: any) => c.name === "Confidence and Clarity")?.score || 0,
+                confidenceAndClarityComment: precalculatedEvaluation.categoryScores.find((c: any) => c.name === "Confidence and Clarity")?.comment || "",
+                strengths: precalculatedEvaluation.strengths,
+                areasForImprovement: precalculatedEvaluation.areasForImprovement,
+                finalAssessment: precalculatedEvaluation.finalAssessment,
+            };
+        } else {
+            const formattedTranscript = transcript
+                .map(
+                    (sentence: { role: string; content: string }) =>
+                        `- ${sentence.role}: ${sentence.content}\n`,
+                )
+                .join("");
 
-        const { object } = await generateObject({
-            model: google("gemini-2.5-flash"),
-            schema: feedbackSchema,
-            prompt: `
-            Analyze the interview transcript below.
+            const { object: aiResult } = await generateObject({
+                model: google("gemini-2.5-flash"),
+                schema: feedbackSchema,
+                prompt: `
+                Analyze the interview transcript below.
 
-            Return:
-            - All scores as numbers between 0 and 100
-            - Each comment as a paragraph
-            - strengths as a list of strings (3-5 bullet points)
-            - areasForImprovement as a single paragraph (no bullets)
-            - finalAssessment as a paragraph
+                Return:
+                - All scores as numbers between 0 and 100
+                - Each comment as a paragraph
+                - strengths as a list of strings (3-5 bullet points)
+                - areasForImprovement as a list of strings
+                - finalAssessment as a paragraph
 
-            Transcript:
-            ${formattedTranscript}
-            `,
+                Transcript:
+                ${formattedTranscript}
+                `,
 
-            system: "You are a professional interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories",
-        });
+                system: "You are a professional interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories",
+            });
+            object = aiResult;
+        }
 
         const feedback = {
             interviewId,

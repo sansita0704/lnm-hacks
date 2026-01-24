@@ -25,22 +25,23 @@ export interface InterviewInput {
 
 // Evaluation Output Types
 export interface CategoryScore {
-  category: string;
+  name: string;
   score: number; // 0-100
-  weight: number; // percentage
-  reasoning: string;
+  comment: string;
 }
 
 export interface EvaluationScore {
-  overall: number; // 0-100 (weighted average)
-  categories: CategoryScore[];
-  brief_reasoning: string;
+  totalScore: number; // 0-100
+  categoryScores: CategoryScore[];
+  strengths: string[];
+  areasForImprovement: string[];
+  finalAssessment: string;
   timestamp: string;
 }
 
 export interface DecisionResult {
   status: "pass" | "fail";
-  final_score: number;
+  finalScore: number;
   decision_timestamp: string;
   evaluation: EvaluationScore;
 }
