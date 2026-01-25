@@ -135,6 +135,24 @@ export class PaymentAgent {
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: `0x${expectedChainId.toString(16)}` }],
           });
+          
+          // Wait for network switch to complete
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Recreate provider and signer after network switch
+          const newProvider = new ethers.BrowserProvider(window.ethereum);
+          const newSigner = await newProvider.getSigner();
+          const newWallet = await newSigner.getAddress();
+          
+          // Verify network switch was successful
+          const newNetwork = await newProvider.getNetwork();
+          if (newNetwork.chainId !== expectedChainId) {
+            throw new Error('Network switch failed. Please manually switch to Monad Testnet.');
+          }
+          
+          // Update local variables
+          wallet = newWallet;
+          
         } catch (switchError: any) {
           // If network doesn't exist, add it
           if (switchError.code === 4902) {
@@ -153,24 +171,22 @@ export class PaymentAgent {
                   blockExplorerUrls: ['https://explorer.testnet.monad.xyz'],
                 }],
               });
+              
+              // Wait for network to be added and switched
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              
             } catch (addError) {
               throw new Error('Failed to add Monad Testnet to MetaMask. Please add it manually.');
             }
+          } else if (switchError.message && !switchError.message.includes('User rejected')) {
+            throw switchError;
           } else {
             throw new Error('Please switch to Monad Testnet in MetaMask to continue.');
           }
         }
-        
-        // Refresh provider after network switch
-        const newProvider = new ethers.BrowserProvider(window.ethereum);
-        const newNetwork = await newProvider.getNetwork();
-        
-        if (newNetwork.chainId !== expectedChainId) {
-          throw new Error('Network switch failed. Please manually switch to Monad Testnet.');
-        }
       }
 
-      // Get contract instances
+      // Get contract instances AFTER network verification/switch
       const escrowContract = await getContract();
       const tokenContract = await getTokenContract();
 
