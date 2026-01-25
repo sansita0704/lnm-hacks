@@ -119,12 +119,86 @@ export class PaymentAgent {
       const signer = await provider.getSigner();
       const wallet = await signer.getAddress();
 
+      // Verify network and switch if needed
+      const network = await provider.getNetwork();
+      const expectedChainId = BigInt(requirement.chainId || 10143);
+      
+      if (network.chainId !== expectedChainId) {
+        this.updateProgress(
+          PaymentState.APPROVING, 
+          `Switching to Monad Testnet...`
+        );
+        
+        try {
+          // Try to switch to Monad Testnet
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: `0x${expectedChainId.toString(16)}` }],
+          });
+        } catch (switchError: any) {
+          // If network doesn't exist, add it
+          if (switchError.code === 4902) {
+            try {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: `0x${expectedChainId.toString(16)}`,
+                  chainName: 'Monad Testnet',
+                  nativeCurrency: {
+                    name: 'MON',
+                    symbol: 'MON',
+                    decimals: 18,
+                  },
+                  rpcUrls: ['https://testnet.monad.xyz'],
+                  blockExplorerUrls: ['https://explorer.testnet.monad.xyz'],
+                }],
+              });
+            } catch (addError) {
+              throw new Error('Failed to add Monad Testnet to MetaMask. Please add it manually.');
+            }
+          } else {
+            throw new Error('Please switch to Monad Testnet in MetaMask to continue.');
+          }
+        }
+        
+        // Refresh provider after network switch
+        const newProvider = new ethers.BrowserProvider(window.ethereum);
+        const newNetwork = await newProvider.getNetwork();
+        
+        if (newNetwork.chainId !== expectedChainId) {
+          throw new Error('Network switch failed. Please manually switch to Monad Testnet.');
+        }
+      }
+
       // Get contract instances
       const escrowContract = await getContract();
       const tokenContract = await getTokenContract();
 
+      // Debug: Log addresses (remove after fixing)
+      console.log('🔍 Contract Addresses:', {
+        stake: process.env.NEXT_PUBLIC_STAKE_ADDRESS,
+        token: process.env.NEXT_PUBLIC_TOKEN_ADDRESS,
+        escrowFromRequirement: requirement.destinationAddress,
+        tokenFromRequirement: requirement.tokenAddress,
+      });
+
       if (!escrowContract || !tokenContract) {
         throw new Error("Failed to connect to contracts");
+      }
+
+      // Verify contract exists by checking code at address
+      const escrowCode = await provider.getCode(requirement.destinationAddress);
+      if (escrowCode === '0x') {
+        throw new Error(
+          `Escrow contract not found at ${requirement.destinationAddress}. Please verify the contract is deployed on Monad Testnet.`
+        );
+      }
+
+      const tokenCode = await provider.getCode(requirement.tokenAddress);
+      if (tokenCode === '0x') {
+        throw new Error(
+          `Token contract not found at ${requirement.tokenAddress}. Please verify the contract is deployed on Monad Testnet.`
+        );
       }
 
       // Get stake amount from contract (trustless - contract defines the rules)
