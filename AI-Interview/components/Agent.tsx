@@ -270,6 +270,9 @@ const Agent = ({
             await navigator.mediaDevices.getUserMedia({ audio: true });
 
             // Get wallet and save it
+            if (!window.ethereum) {
+                throw new Error("MetaMask is required to continue.");
+            }
             const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
             const wallet = await signer.getAddress();
@@ -277,6 +280,7 @@ const Agent = ({
             await saveUserWallet(userId!, wallet);
 
             // Create payment agent with progress callback
+            /* 
             const paymentAgent = createPaymentAgent((progress) => {
                 setPaymentProgress(progress);
                 
@@ -314,6 +318,11 @@ const Agent = ({
                     userId!
                 );
             }
+            */
+
+            // BYPASS PAYMENT FOR TESTING
+            console.log("Payment bypassed for testing...");
+            const paymentResult = { success: true };
 
             // Payment successful - start interview
             console.log("Payment successful, starting AI interview...");

@@ -33,7 +33,7 @@ const Feedback = async ({ params }: RouteParams) => {
                     </h2>
                     <p>The feedback is still being generated.</p>
                     <Button className="btn-primary">
-                        <a href="/" className="flex w-full justify-center">
+                        <a href="http://localhost:5173" className="flex w-full justify-center">
                             <p className="text-sm font-semibold text-primary-200 text-center">
                                 Back to dashboard
                             </p>
@@ -160,11 +160,11 @@ const Feedback = async ({ params }: RouteParams) => {
 
             <div className="buttons">
                 <Button className="btn-secondary flex-1">
-                    <Link href="/" className="flex w-full justify-center">
+                    <a href="http://localhost:5173" className="flex w-full justify-center">
                         <p className="text-sm font-semibold text-primary-200 text-center">
                             Back to dashboard
                         </p>
-                    </Link>
+                    </a>
                 </Button>
 
                 <Button className="btn-primary flex-1">
