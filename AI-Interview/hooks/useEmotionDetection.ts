@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const API_URL = '/api/emotion';
+const API_URL = 'http://localhost:5000';
 const DETECTION_INTERVAL = 1000;
 
 export interface EmotionData {

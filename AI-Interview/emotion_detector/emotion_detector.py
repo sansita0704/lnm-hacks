@@ -154,7 +154,7 @@ class EmotionDetector:
                 preprocessed,
                 actions=['emotion'],
                 enforce_detection=True,
-                detector_backend='retinaface',
+                detector_backend='opencv',
                 silent=True
             )
             
